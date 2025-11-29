@@ -1,0 +1,54 @@
+spring:
+  application:
+    name: log-sleuth-enterprise
+
+  # Cassandra конфигурация (пока закомментирована)
+  # data:
+  #   cassandra:
+  #     keyspace-name: log_analytics
+  #     contact-points: localhost
+  #     port: 9042
+  #     local-datacenter: datacenter1
+  #     schema-action: CREATE_IF_NOT_EXISTS
+
+  # Kafka конфигурация (пока закомментирована)
+  # kafka:
+  #   bootstrap-servers: localhost:9092
+  #   consumer:
+  #     group-id: log-processor-group
+  #     auto-offset-reset: earliest
+
+  # Elasticsearch конфигурация (пока закомментирована)
+  # elasticsearch:
+  #   uris: http://localhost:9200
+
+# Actuator для проверки работы
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,info,prometheus
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      prometheus:
+
+
+# Логирование
+logging:
+  level:
+    com.example.logsleuthenterprise: INFO
+    org.apache.kafka: WARN
+  pattern:
+    level: "%5p [${spring.application.name:},%X{traceId:-},%X{spanId:-}]"
+
+server:
+  port: 8080
+
+# Настройки приложения
+app:
+  processing:
+    batch-size: 100
+    timeout-seconds: 30
