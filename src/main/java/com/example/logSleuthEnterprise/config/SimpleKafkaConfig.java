@@ -1,2 +1,9 @@
-package com.example.logSleuthEnterprise.config;public class SimpleKafkaConfig {
+package com.example.logSleuthEnterprise.config;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.kafka.annotation.EnableKafka;
+
+@Configuration
+@EnableKafka
+public class SimpleKafkaConfig {
+
 }
