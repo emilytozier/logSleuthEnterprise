@@ -1,4 +1,3 @@
-// Файл: StatusController.java
 package com.example.logSleuthEnterprise.controller;
 
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,7 +17,7 @@ public class StatusController {
         health.put("timestamp", Instant.now().toString());
 
         Map<String, Object> components = new HashMap<>();
-        components.put("web", Map.of("status", "UP", "port", 8081));
+        components.put("web", Map.of("status", "UP"));
         components.put("cassandra", testCassandraConnection());
 
         health.put("components", components);
