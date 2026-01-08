@@ -1,69 +1,82 @@
 version: '3.8'
 
 services:
-  # Cassandra для хранения логов
   cassandra:
-    image: cassandra:4.0
+    image: cassandra:4.1
     container_name: log-cassandra
     ports:
       - "9042:9042"
     environment:
-      - CASSANDRA_CLUSTER_NAME=log-cluster
-      - CASSANDRA_DC=datacenter1
-    volumes:
-      - cassandra_data:/var/lib/cassandra
-    healthcheck:
-      test: ["CMD-SHELL", "cqlsh -e 'DESCRIBE keyspaces' || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 10
+      - CASSANDRA_CLUSTER_NAME=log-sleuth
 
-  # Elasticsearch для поиска
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.5.0
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.1
     container_name: log-elasticsearch
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=false
-      - "ES_JAVA_OPTS=-Xms256m -Xmx256m"
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
     ports:
       - "9200:9200"
     volumes:
       - elasticsearch_data:/usr/share/elasticsearch/data
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:9200 || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 10
 
-  # Kafka для потоковой обработки
-  zookeeper:
-    image: confluentinc/cp-zookeeper:latest
-    container_name: log-zookeeper
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.1
+    container_name: log-kibana
+    ports:
+      - "5601:5601"
     environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-      ZOOKEEPER_TICK_TIME: 2000
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    depends_on:
+      - elasticsearch
+
+  zookeeper:
+    image: zookeeper:3.9.2
+    container_name: log-zookeeper
     ports:
       - "2181:2181"
+    environment:
+      - ALLOW_ANONYMOUS_LOGIN=yes
+      - ZOO_TICK_TIME=2000
+    volumes:
+      - zookeeper_data:/bitnami
 
   kafka:
-    image: confluentinc/cp-kafka:latest
+    image: wurstmeister/kafka:2.13-2.8.1
     container_name: log-kafka
-    depends_on:
-      - zookeeper
     ports:
       - "9092:9092"
     environment:
-      KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_BROKER_ID: 1
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-    healthcheck:
-      test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 10
+    depends_on:
+      - zookeeper
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.11.1
+    container_name: log-logstash
+    ports:
+      - "5000:5000"
+      - "9600:9600"
+    environment:
+      - ELASTIC_PASSWORD=changeme
+      - XPACK_MONITORING_ENABLED=false
+    volumes:
+      - ./logstash.config:/usr/share/logstash/pipeline/logstash.conf
+      - ./logstash.yml:/usr/share/logstash/config/logstash.yml
+      - logstash_data:/usr/share/logstash/data
+    command: logstash -f /usr/share/logstash/pipeline/logstash.conf
+    depends_on:
+      - elasticsearch
+      - kafka
 
 volumes:
-  cassandra_data:
   elasticsearch_data:
+  zookeeper_data:
+  kafka_data:
+  logstash_data:
